@@ -1,0 +1,70 @@
+{
+  "publisher": "simonhe",
+  "name": "unocss-completion",
+  "displayName": "unocss-completion",
+  "version": "0.0.0",
+  "packageManager": "pnpm@8.10.5",
+  "description": "unocss-completion",
+  "author": "Simon He <https://github.com/Simon-He95>",
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/Simon-He95",
+  "homepage": "https://github.com/Simon-He95/unocss-completion#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Simon-He95/unocss-completion"
+  },
+  "bugs": {
+    "url": "https://github.com/Simon-He95/unocss-completion/issues"
+  },
+  "sponsor": {
+    "url": "https://github.com/Simon-He95/sponsor"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/index.js",
+  "icon": "icon.png",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "vscode": "^1.84.2"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "scripts": {
+    "dev": "pnpm build --watch",
+    "test": "vitest",
+    "build": "tsup src/index.ts --external vscode",
+    "pack": "vsce package --no-dependencies",
+    "lint": "eslint . --cache",
+    "lint:fix": "eslint . --fix",
+    "publish": "vsce publish --no-dependencies",
+    "typecheck": "tsc --noEmit",
+    "release": "bumpp && pnpm run publish"
+  },
+  "devDependencies": {
+    "@simon_he/eslint-config": "^0.0.6",
+    "@types/node": "^18.15.11",
+    "@types/vscode": "^1.77.0",
+    "@typescript-eslint/typescript-estree": "^6.0.0",
+    "@vscode-use/utils": "^0.0.80",
+    "@vue/compiler-sfc": "3.3.4",
+    "axios": "^1.6.0",
+    "bumpp": "^9.1.0",
+    "eslint": "^8.37.0",
+    "esno": "^0.16.3",
+    "find-up": "^6.3.0",
+    "pnpm": "^8.1.1",
+    "prettier": "^3.0.0",
+    "rimraf": "^4.4.1",
+    "svelte": "^4.2.0",
+    "tsup": "^6.7.0",
+    "typescript": "^5.0.3",
+    "unconfig": "^0.3.11",
+    "vite": "^4.2.1",
+    "vitest": "^0.29.8",
+    "vsce": "^2.15.0"
+  }
+}
