@@ -7,9 +7,12 @@ import { createConfigLoader as createLoader } from 'unconfig'
 import { parser } from './parser'
 import { addRemToPxComment, getColorString } from './utils'
 
+// todo: 监听收集过的uno.config 的cwd文件是否发生变化，变化则将路径的cache移除
 export async function activate(context: ExtensionContext) {
   const disposes: Disposable[] = []
 
+  const shortcutsCache = new Map()
+  init()
   disposes.push(registerCompletionItemProvider(['vue'], async (_: any, position: Position) => {
     const code = getActiveText()
     if (!code)
@@ -21,40 +24,54 @@ export async function activate(context: ExtensionContext) {
     if (ast.propName !== 'class' && ast.propName !== 'className')
       return
 
-    const loader = await getLoader() as any
-    const uno = loader ? createGenerator(loader.config) : null
-    const shortcuts = loader?.config.shortcuts
-    const shortcutsCompletion: any[] = []
-    const baseCompletion = await generateBaseCompletion(uno)
+    const [baseCompletion, shortcuts, uno] = await init() || []
+    const shortcutsCompletion: any = []
     if (shortcuts) {
       for (const s of shortcuts) {
         const [name, value] = s
+        const key = `${name},${value}`
+        if (shortcutsCache.has(key)) {
+          shortcutsCompletion.push(shortcutsCache.get(key))
+          continue
+        }
         const { css } = await uno?.generate(value, { preflights: false }) || {}
-        shortcutsCompletion.push([name, css])
-      }
-    }
-    const prefixPreset = loader?.config.presets.find((item: any) => item.name === '@unocss/preset-attributify')
+        const documentation = new MarkdownString()
+        documentation.appendCodeblock(css || '', 'css')
+        const result = [name, documentation]
+        shortcutsCache.set(key, result)
 
-    if (prefixPreset) {
-      const prefixName = prefixPreset.options.prefix
+        shortcutsCompletion.push(result)
+      }
     }
 
     return [
       ...baseCompletion,
-      ...shortcutsCompletion.map(([content, css]) => createCompletionItem({
+      ...shortcutsCompletion.map(([content, documentation]: any) => createCompletionItem({
         content,
-        detail: css,
+        documentation,
       })),
     ]
   }, [' ', '"', '\'', '.']))
-
-  // addEventListener('text-change',()=>{
-
-  // })
 }
 
 export function deactivate() {
 
+}
+
+async function init() {
+  const loader = await getLoader()
+  if (loader) {
+    const uno = loader ? createGenerator(loader.config) : null
+    const prefixPreset = loader?.config.presets.find((item: any) => item.name === '@unocss/preset-attributify')
+    const { prefixName, prefixedOnly } = prefixPreset?.options?.prefix || {}
+    const shortcuts = loader?.config.shortcuts
+
+    let baseCompletion = await generateBaseCompletion(uno, prefixName)
+    if (!prefixedOnly && prefixName)
+      baseCompletion = [...baseCompletion, ...await generateBaseCompletion(uno, '')]
+
+    return [baseCompletion, shortcuts, uno]
+  }
 }
 
 async function parseUnoConfig(cwd: string) {
@@ -73,9 +90,10 @@ async function parseUnoConfig(cwd: string) {
   const result = await loader.load()
   return result
 }
-
-function getLoader() {
+const loaderCache = new Map()
+async function getLoader() {
   const currentFileUrl = getCurrentFileUrl()!
+
   const cwd = findUpSync('package.json', {
     cwd: currentFileUrl,
   })
@@ -83,10 +101,16 @@ function getLoader() {
   if (!cwd)
     return
 
-  return parseUnoConfig(cwd)
+  if (loaderCache.has(cwd))
+    return loaderCache.get(cwd)
+
+  const result = await parseUnoConfig(cwd)
+  loaderCache.set(cwd, result)
+
+  return result
 }
 
-const sizeMap = ['w', 'h', 'top', 'bottom', 'transalate', 'min-w', 'max-w', 'min-h', 'max-h', 'indent', 'text', 'gap', ...['x', 'y'].map((i) => {
+const sizeMap = ['w', 'h', 'top', 'bottom', 'transalate', 'min-w', 'max-w', 'min-h', 'max-h', 'indent', 'text', 'gap', 'spacing', ...['x', 'y'].map((i) => {
   return ['gap', 'p', 'm'].map(_i => `${_i}-${i}`)
 }).flat(), ...['t', 'l', 'r', 'b'].map((i) => {
   return ['m', 'p'].map(_i => `${_i}${i}`)
@@ -123,9 +147,10 @@ const prefixMap = [
   'group-focus',
   'group-active',
 ]
-const otherMap = [
-  'bg',
-  'text',
+const aspectMap = [
+  'aspect-auto',
+  'aspect-square',
+  'aspect-video',
 ]
 const colorMap = [
   'black',
@@ -184,13 +209,19 @@ const whitespaceMap = [
 ]
 const size = []
 
-async function generateBaseCompletion(uno: any) {
+const border = ['l', 'r', 't', 'b', 'x', 'y', 's', 'e']
+const colorPrefix = ['decoration', 'text', 'bg', 'accent', 'from', 'to', 'via', 'fill', 'ring-offset', 'ring', 'outline', 'placeholder', 'shadow', 'stroke', 'caret', 'divide', ...border.map(i => `border-${i}`), ...border.map(i => `divide-${i}`)]
+const baseCache = new Map()
+async function generateBaseCompletion(uno: any, prefixName: string = '') {
+  if (baseCache.has(prefixName))
+    return baseCache.get(prefixName)
+
   const sizeData: any[] = []
   for (const s of sizeMap) {
     const temp: string[] = []
     for (let i = 1; i < 10; i++) {
-      temp.push(`${s}-${i}`)
-      temp.push(`-${s}-${i}`)
+      temp.push(`${prefixName}${s}-${i}`)
+      temp.push(`${prefixName}-${s}-${i}`)
     }
 
     for (const content of temp) {
@@ -200,16 +231,16 @@ async function generateBaseCompletion(uno: any) {
       const documentation = new MarkdownString()
       documentation.appendCodeblock(detail, 'css')
       sizeData.push(createCompletionItem({
-        content: `${content} ${css}`,
-        snippet: content,
+        content: `${prefixName}${content} ${css}`,
+        snippet: `${prefixName}${content}`,
         documentation,
         type: CompletionItemKind.Constant,
       }))
     }
 
     sizeData.push(createCompletionItem({
-      content: `${s}-[]`,
-      snippet: `${s}-[$1]$2`,
+      content: `${prefixName}${s}-[]`,
+      snippet: `${prefixName}${s}-[$1]$2`,
     }))
   }
 
@@ -240,7 +271,7 @@ async function generateBaseCompletion(uno: any) {
   const colorData: any = []
   for (const i of ['inherit', 'current', 'transparent']) {
     for (const j of ['text', 'bg']) {
-      const content = `${j}-${i}`
+      const content = `${prefixName}${j}-${i}`
       const { css: detail } = await uno?.generate(content, { preflights: false, safelist: false }) || {}
       const documentation = new MarkdownString()
       documentation.appendCodeblock(detail, 'css')
@@ -253,9 +284,9 @@ async function generateBaseCompletion(uno: any) {
   }
 
   for (const c of colorMap) {
-    for (const i of ['text', 'bg']) {
+    for (const i of colorPrefix) {
       if (c === 'white' || c === 'black') {
-        const content = `${i}-${c}`
+        const content = `${prefixName}${i}-${c}`
         const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
         const colorString = getColorString(detail)
         colorData.push(createCompletionItem({
@@ -268,7 +299,7 @@ async function generateBaseCompletion(uno: any) {
       }
       else {
         for (const j of ['50', '200', '400', '600', '800', '900']) {
-          const content = `${i}-${c}-${j}`
+          const content = `${prefixName}${i}-${c}-${j}`
           const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
           const colorString = getColorString(detail)
 
@@ -285,7 +316,7 @@ async function generateBaseCompletion(uno: any) {
   }
 
   const textData = textMap.map(async (t) => {
-    const content = `text-${t}`
+    const content = `${prefixName}text-${t}`
     const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
@@ -297,7 +328,7 @@ async function generateBaseCompletion(uno: any) {
   })
 
   const whiteData = whitespaceMap.map(async (t) => {
-    const content = `whitespace-${t}`
+    const content = `${prefixName}whitespace-${t}`
     const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
@@ -308,12 +339,18 @@ async function generateBaseCompletion(uno: any) {
     })
   })
   const alignData = alignMap.map(async (t) => {
-    const content = `align-${t}`
+    const content = `${prefixName}align-${t}`
     const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
     return createCompletionItem({ content, documentation })
   })
 
-  return Promise.all([...colorData, ...sizeData, ...prefixData, ...textData, ...alignData, ...whiteData])
+  const aspectData = aspectMap.map(t => createCompletionItem({ content: `${prefixName}${t}` }))
+
+  const data = await Promise.all([...colorData, ...sizeData, ...prefixData, ...textData, ...alignData, ...whiteData, ...aspectData])
+
+  baseCache.set(prefixName, data)
+
+  return data
 }
