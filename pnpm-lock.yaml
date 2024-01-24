@@ -20,9 +20,9 @@ importers:
       '@typescript-eslint/typescript-estree':
         specifier: ^6.0.0
         version: 6.19.1(typescript@5.3.3)
-      '@vscode-use/createwebview':
-        specifier: ^0.0.10
-        version: 0.0.10
+      '@unocss/core':
+        specifier: ^0.58.3
+        version: 0.58.3
       '@vscode-use/utils':
         specifier: ^0.0.80
         version: 0.0.80
@@ -959,6 +959,10 @@ packages:
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
     dev: true
 
+  /@unocss/core@0.58.3:
+    resolution: {integrity: sha512-9hTxzsrSLh+07ql/lGhE+8ZbE9MTTeZeMx131cPf2jDJUxAZooLE5pBCoK0k77ZJGcribRrwPGkUScBNOK0cYQ==}
+    dev: true
+
   /@vitest/expect@0.29.8:
     resolution: {integrity: sha512-xlcVXn5I5oTq6NiZSY3ykyWixBxr5mG8HYtjvpgg6KaqHm0mvhX18xuwl5YGxIRNt/A5jidd7CWcNHrSvgaQqQ==}
     dependencies:
@@ -988,11 +992,6 @@ packages:
       diff: 5.1.0
       loupe: 2.3.7
       pretty-format: 27.5.1
-    dev: true
-
-  /@vscode-use/createwebview@0.0.10:
-    resolution: {integrity: sha512-YQeGLuLBMFwxxdHXXWhLtz9bXNu2Va4g7SZ+5gribHZVho0KZm2TkO5I5hOJdBrZIiOaOx2z0BfqSIR+PtGtIA==}
-    engines: {vscode: ^1.77.0}
     dev: true
 
   /@vscode-use/utils@0.0.80:

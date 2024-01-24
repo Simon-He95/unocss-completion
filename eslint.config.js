@@ -3,6 +3,6 @@ const simon_he = require('@simon_he/eslint-config').default
 
 module.exports = simon_he({
   rules: {
-    "ts/no-require-imports": "off"
-  }
+    'ts/no-require-imports': 'off',
+  },
 })

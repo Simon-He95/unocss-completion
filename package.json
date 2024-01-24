@@ -49,6 +49,7 @@
     "@types/node": "^18.15.11",
     "@types/vscode": "^1.77.0",
     "@typescript-eslint/typescript-estree": "^6.0.0",
+    "@unocss/core": "^0.58.3",
     "@vscode-use/utils": "^0.0.80",
     "@vue/compiler-sfc": "3.3.4",
     "axios": "^1.6.0",
