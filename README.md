@@ -3,6 +3,9 @@
 </p>
 <p align="center"> English | <a href="./README_zh.md">简体中文</a></p>
 
+> WIP: unocss的vsc代码提示插件
+
+![demo](/assets/demo.gif)
 
 ## :coffee:
 

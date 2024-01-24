@@ -52,6 +52,8 @@ export async function activate(context: ExtensionContext) {
       })),
     ]
   }, [' ', '"', '\'', '.']))
+
+  context.subscriptions.push(...disposes)
 }
 
 export function deactivate() {
