@@ -1,4 +1,4 @@
-import { createCompletionItem, getActiveText, getCurrentFileUrl, registerCompletionItemProvider } from '@vscode-use/utils'
+import { createCompletionItem, getActiveText, getCurrentFileUrl, registerCommand, registerCompletionItemProvider } from '@vscode-use/utils'
 import { CompletionItemKind, type Disposable, type ExtensionContext, MarkdownString, type Position } from 'vscode'
 import { findUpSync } from 'find-up'
 import { createGenerator } from '@unocss/core'
@@ -13,6 +13,7 @@ export async function activate(context: ExtensionContext) {
 
   const shortcutsCache = new Map()
   init()
+
   disposes.push(registerCompletionItemProvider(['vue'], async (_: any, position: Position) => {
     const code = getActiveText()
     if (!code)
@@ -53,6 +54,10 @@ export async function activate(context: ExtensionContext) {
     ]
   }, [' ', '"', '\'', '.']))
 
+  registerCommand('extension.myCommand', (e) => {
+    // asdas
+    console.log(e)
+  })
   context.subscriptions.push(...disposes)
 }
 
@@ -65,11 +70,11 @@ async function init() {
   if (loader) {
     const uno = loader ? createGenerator(loader.config) : null
     const prefixPreset = loader?.config.presets.find((item: any) => item.name === '@unocss/preset-attributify')
-    const { prefixName, prefixedOnly } = prefixPreset?.options?.prefix || {}
+    const { prefix, prefixedOnly } = prefixPreset?.options || {}
     const shortcuts = loader?.config.shortcuts
 
-    let baseCompletion = await generateBaseCompletion(uno, prefixName)
-    if (!prefixedOnly && prefixName)
+    let baseCompletion = await generateBaseCompletion(uno, prefix)
+    if (!prefixedOnly && prefix)
       baseCompletion = [...baseCompletion, ...await generateBaseCompletion(uno, '')]
 
     return [baseCompletion, shortcuts, uno]
@@ -222,8 +227,8 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
   for (const s of sizeMap) {
     const temp: string[] = []
     for (let i = 1; i < 10; i++) {
-      temp.push(`${prefixName}${s}-${i}`)
-      temp.push(`${prefixName}-${s}-${i}`)
+      temp.push(`${s}-${i}`)
+      temp.push(`-${s}-${i}`)
     }
 
     for (const content of temp) {
