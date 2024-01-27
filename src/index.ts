@@ -35,9 +35,10 @@ export async function activate(context: ExtensionContext) {
           shortcutsCompletion.push(shortcutsCache.get(key))
           continue
         }
-        const { css } = await uno?.generate(value, { preflights: false }) || {}
+        const detail = await getCssDetail(value, uno)
+
         const documentation = new MarkdownString()
-        documentation.appendCodeblock(css || '', 'css')
+        documentation.appendCodeblock(detail || '', 'css')
         const result = [name, documentation]
         shortcutsCache.set(key, result)
 
@@ -54,10 +55,6 @@ export async function activate(context: ExtensionContext) {
     ]
   }, [' ', '"', '\'', '.']))
 
-  registerCommand('extension.myCommand', (e) => {
-    // asdas
-    console.log(e)
-  })
   context.subscriptions.push(...disposes)
 }
 
@@ -98,6 +95,7 @@ async function parseUnoConfig(cwd: string) {
   return result
 }
 const loaderCache = new Map()
+
 async function getLoader() {
   const currentFileUrl = getCurrentFileUrl()!
 
@@ -219,6 +217,7 @@ const size = []
 const border = ['l', 'r', 't', 'b', 'x', 'y', 's', 'e']
 const colorPrefix = ['decoration', 'text', 'bg', 'accent', 'from', 'to', 'via', 'fill', 'ring-offset', 'ring', 'outline', 'placeholder', 'shadow', 'stroke', 'caret', 'divide', ...border.map(i => `border-${i}`), ...border.map(i => `divide-${i}`)]
 const baseCache = new Map()
+const unoGenerateCacheMap = new Map()
 async function generateBaseCompletion(uno: any, prefixName: string = '') {
   if (baseCache.has(prefixName))
     return baseCache.get(prefixName)
@@ -232,7 +231,8 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
     }
 
     for (const content of temp) {
-      const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+      const detail = await getCssDetail(content, uno)
+      unoGenerateCacheMap.set(content, detail)
       const css = addRemToPxComment(detail, 16)
 
       const documentation = new MarkdownString()
@@ -253,7 +253,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
 
   const prefixData = prefixMap.map((p) => {
     return createCompletionItem({
-      content: `${p}:`,
+      content: `${prefixName}${p}:`,
       type: CompletionItemKind.Module,
       command: {
         command: 'editor.action.triggerSuggest', // 这个命令会触发代码提示
@@ -264,8 +264,8 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
     ;['max', 'min', 'per', 'area', 'data', 'group', 'supports', 'peer-aria', 'peer-data', 'group-aria', 'group-data'].forEach((i) => {
     prefixData.push(
       createCompletionItem({
-        content: `${i}-[]:`,
-        snippet: `${i}-[$1]:$2`,
+        content: `${prefixName}${i}-[]:`,
+        snippet: `${prefixName}${i}-[$1]:$2`,
         type: CompletionItemKind.Module,
         commands: {
           command: 'editor.action.triggerSuggest', // 这个命令会触发代码提示
@@ -279,7 +279,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
   for (const i of ['inherit', 'current', 'transparent']) {
     for (const j of ['text', 'bg']) {
       const content = `${prefixName}${j}-${i}`
-      const { css: detail } = await uno?.generate(content, { preflights: false, safelist: false }) || {}
+      const detail = await getCssDetail(content, uno)
       const documentation = new MarkdownString()
       documentation.appendCodeblock(detail, 'css')
       colorData.push(createCompletionItem({
@@ -294,7 +294,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
     for (const i of colorPrefix) {
       if (c === 'white' || c === 'black') {
         const content = `${prefixName}${i}-${c}`
-        const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+        const detail = await getCssDetail(content, uno)
         const colorString = getColorString(detail)
         colorData.push(createCompletionItem({
           content: `${content}${colorString ? ` ${colorString}` : ''}`,
@@ -307,7 +307,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
       else {
         for (const j of ['50', '200', '400', '600', '800', '900']) {
           const content = `${prefixName}${i}-${c}-${j}`
-          const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+          const detail = await getCssDetail(content, uno)
           const colorString = getColorString(detail)
 
           colorData.push(createCompletionItem({
@@ -324,7 +324,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
 
   const textData = textMap.map(async (t) => {
     const content = `${prefixName}text-${t}`
-    const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+    const detail = await getCssDetail(content, uno)
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
     return createCompletionItem({
@@ -336,7 +336,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
 
   const whiteData = whitespaceMap.map(async (t) => {
     const content = `${prefixName}whitespace-${t}`
-    const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+    const detail = await getCssDetail(content, uno)
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
     return createCompletionItem({
@@ -347,7 +347,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
   })
   const alignData = alignMap.map(async (t) => {
     const content = `${prefixName}align-${t}`
-    const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+    const detail = await getCssDetail(content, uno)
     const documentation = new MarkdownString()
     documentation.appendCodeblock(detail, 'css')
     return createCompletionItem({ content, documentation })
@@ -360,4 +360,11 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
   baseCache.set(prefixName, data)
 
   return data
+}
+
+async function getCssDetail(content: string, uno: any) {
+  if (unoGenerateCacheMap.has(content))
+    return unoGenerateCacheMap.get(content)
+  const { css: detail } = await uno?.generate(content, { preflights: false }) || {}
+  return detail
 }
