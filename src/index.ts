@@ -1,4 +1,5 @@
-import { createCompletionItem, getActiveText, getCurrentFileUrl, registerCommand, registerCompletionItemProvider } from '@vscode-use/utils'
+import path from 'node:path'
+import { createCompletionItem, getActiveText, getCurrentFileUrl, registerCompletionItemProvider, watchFiles } from '@vscode-use/utils'
 import { CompletionItemKind, type Disposable, type ExtensionContext, MarkdownString, type Position } from 'vscode'
 import { findUpSync } from 'find-up'
 import { createGenerator } from '@unocss/core'
@@ -8,6 +9,10 @@ import { parser } from './parser'
 import { addRemToPxComment, getColorString } from './utils'
 
 // todo: 监听收集过的uno.config 的cwd文件是否发生变化，变化则将路径的cache移除
+const baseCache = new Map()
+const unoGenerateCacheMap = new Map()
+const loaderCache = new Map()
+
 export async function activate(context: ExtensionContext) {
   const disposes: Disposable[] = []
 
@@ -92,12 +97,27 @@ async function parseUnoConfig(cwd: string) {
   })
 
   const result = await loader.load()
+  const source = result.sources?.[0]
+  if (source) {
+    watchFiles(source, {
+      onChange(uri) {
+        unoGenerateCacheMap.clear()
+        const dirname = path.dirname(uri.fsPath)
+        loaderCache.delete(dirname)
+      },
+      onDelete() {
+        unoGenerateCacheMap.clear()
+      },
+    })
+  }
   return result
 }
-const loaderCache = new Map()
 
 async function getLoader() {
   const currentFileUrl = getCurrentFileUrl()!
+  const curDirname = path.dirname(currentFileUrl)
+  if (loaderCache.has(curDirname))
+    return loaderCache.get(curDirname)
 
   const cwd = findUpSync('package.json', {
     cwd: currentFileUrl,
@@ -106,11 +126,12 @@ async function getLoader() {
   if (!cwd)
     return
 
-  if (loaderCache.has(cwd))
-    return loaderCache.get(cwd)
+  const dirname = path.dirname(cwd)
+  if (loaderCache.has(dirname))
+    return loaderCache.get(dirname)
 
   const result = await parseUnoConfig(cwd)
-  loaderCache.set(cwd, result)
+  loaderCache.set(dirname, result)
 
   return result
 }
@@ -120,6 +141,7 @@ const sizeMap = ['w', 'h', 'top', 'bottom', 'transalate', 'min-w', 'max-w', 'min
 }).flat(), ...['t', 'l', 'r', 'b'].map((i) => {
   return ['m', 'p'].map(_i => `${_i}${i}`)
 }).flat()]
+
 const prefixMap = [
   'before',
   'after',
@@ -216,8 +238,7 @@ const size = []
 
 const border = ['l', 'r', 't', 'b', 'x', 'y', 's', 'e']
 const colorPrefix = ['decoration', 'text', 'bg', 'accent', 'from', 'to', 'via', 'fill', 'ring-offset', 'ring', 'outline', 'placeholder', 'shadow', 'stroke', 'caret', 'divide', ...border.map(i => `border-${i}`), ...border.map(i => `divide-${i}`)]
-const baseCache = new Map()
-const unoGenerateCacheMap = new Map()
+
 async function generateBaseCompletion(uno: any, prefixName: string = '') {
   if (baseCache.has(prefixName))
     return baseCache.get(prefixName)
