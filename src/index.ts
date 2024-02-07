@@ -136,7 +136,7 @@ async function getLoader() {
   return result
 }
 
-const sizeMap = ['w', 'h', 'top', 'bottom', 'transalate', 'min-w', 'max-w', 'min-h', 'max-h', 'indent', 'text', 'gap', 'spacing', ...['x', 'y'].map((i) => {
+const sizeMap = ['w', 'h', 'top', 'bottom', 'transalate', 'min-w', 'max-w', 'min-h', 'max-h', 'indent', 'text', 'gap', 'spacing', 'columns', ...['x', 'y'].map((i) => {
   return ['gap', 'p', 'm'].map(_i => `${_i}-${i}`)
 }).flat(), ...['t', 'l', 'r', 'b'].map((i) => {
   return ['m', 'p'].map(_i => `${_i}${i}`)
@@ -233,6 +233,29 @@ const whitespaceMap = [
   'pre-line',
   'pre-wrap',
   'break-spaces',
+]
+
+const breakMap = [
+  'break-before-auto',
+  'break-before-avoid',
+  'break-before-all',
+  'break-before-avoid-page',
+  'break-before-page',
+  'break-before-left',
+  'break-before-right',
+  'break-before-column',
+  'break-after-auto',
+  'break-after-avoid',
+  'break-after-all',
+  'break-after-avoid-page',
+  'break-after-page',
+  'break-after-left',
+  'break-after-right',
+  'break-after-column',
+  'break-inside-auto',
+  'break-inside-avoid',
+  'break-inside-avoid-page',
+  'break-inside-avoid-column',
 ]
 const size = []
 
@@ -366,6 +389,7 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
       type: CompletionItemKind.Constant,
     })
   })
+
   const alignData = alignMap.map(async (t) => {
     const content = `${prefixName}align-${t}`
     const detail = await getCssDetail(content, uno)
@@ -376,7 +400,9 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
 
   const aspectData = aspectMap.map(t => createCompletionItem({ content: `${prefixName}${t}` }))
 
-  const data = await Promise.all([...colorData, ...sizeData, ...prefixData, ...textData, ...alignData, ...whiteData, ...aspectData])
+  const breakData = breakMap.map(t => createCompletionItem({ content: `${prefixName}${t}` }))
+
+  const data = await Promise.all([...colorData, ...sizeData, ...prefixData, ...textData, ...alignData, ...whiteData, ...aspectData, ...breakData])
 
   baseCache.set(prefixName, data)
 
