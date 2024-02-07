@@ -69,11 +69,11 @@ export function deactivate() {
 
 async function init() {
   const loader = await getLoader()
-  if (loader) {
+  if (loader && loader.config) {
     const uno = loader ? createGenerator(loader.config) : null
-    const prefixPreset = loader?.config.presets.find((item: any) => item.name === '@unocss/preset-attributify')
+    const prefixPreset = loader.config.presets.find((item: any) => item.name === '@unocss/preset-attributify')
     const { prefix, prefixedOnly } = prefixPreset?.options || {}
-    const shortcuts = loader?.config.shortcuts
+    const shortcuts = loader.config.shortcuts
 
     let baseCompletion = await generateBaseCompletion(uno, prefix)
     if (!prefixedOnly && prefix)
