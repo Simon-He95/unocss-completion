@@ -27,6 +27,19 @@ export async function activate(context: ExtensionContext) {
     if (!ast.tag)
       return
 
+    if (!ast.propName) {
+      return [
+        createCompletionItem({
+          content: 'class',
+          snippet: 'class="${1:  }"',
+          command: {
+            command: 'editor.action.triggerSuggest', // 这个命令会触发代码提示
+            title: 'Trigger Suggest',
+          },
+        }),
+      ]
+    }
+
     if (ast.propName !== 'class' && ast.propName !== 'className')
       return
 
@@ -278,11 +291,10 @@ async function generateBaseCompletion(uno: any, prefixName: string = '') {
       const detail = await getCssDetail(content, uno)
       unoGenerateCacheMap.set(content, detail)
       const css = addRemToPxComment(detail, 16)
-
       const documentation = new MarkdownString()
       documentation.appendCodeblock(detail, 'css')
       sizeData.push(createCompletionItem({
-        content: `${prefixName}${content} ${css}`,
+        content: `${prefixName}${content} ${css || ''}`,
         snippet: `${prefixName}${content}`,
         documentation,
         type: CompletionItemKind.Constant,
